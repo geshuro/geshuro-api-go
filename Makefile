@@ -207,6 +207,54 @@ prod-run: ## Run in production mode
 	@echo "🏭 Running in production mode..."
 	@GIN_MODE=release make run
 
+# Azure deployment commands
+azure-login: ## Login to Azure CLI
+	@echo "🔐 Logging into Azure CLI..."
+	@az login
+
+azure-setup: ## Setup Azure resources for Container Apps
+	@echo "🏗️  Setting up Azure resources..."
+	@chmod +x scripts/deploy-azure.sh
+	@./scripts/deploy-azure.sh --help
+
+azure-deploy-staging: ## Deploy to Azure Container Apps (Staging)
+	@echo "🚀 Deploying to Azure Container Apps (Staging)..."
+	@chmod +x scripts/deploy-azure.sh
+	@./scripts/deploy-azure.sh
+
+azure-deploy-production: ## Deploy to Azure Container Apps (Production)
+	@echo "🚀 Deploying to Azure Container Apps (Production)..."
+	@chmod +x scripts/deploy-azure.sh
+	@./scripts/deploy-azure.sh
+
+azure-logs: ## View Azure Container Apps logs
+	@echo "📋 Viewing Azure Container Apps logs..."
+	@if [ -z "$(CONTAINER_APP_NAME)" ]; then \
+		echo "❌ CONTAINER_APP_NAME environment variable not set"; \
+		echo "Usage: make azure-logs CONTAINER_APP_NAME=your-app-name"; \
+	else \
+		az containerapp logs show --name $(CONTAINER_APP_NAME) --resource-group $(AZURE_RESOURCE_GROUP) --follow; \
+	fi
+
+azure-status: ## Check Azure Container Apps status
+	@echo "🔍 Checking Azure Container Apps status..."
+	@if [ -z "$(CONTAINER_APP_NAME)" ]; then \
+		echo "❌ CONTAINER_APP_NAME environment variable not set"; \
+		echo "Usage: make azure-status CONTAINER_APP_NAME=your-app-name"; \
+	else \
+		az containerapp show --name $(CONTAINER_APP_NAME) --resource-group $(AZURE_RESOURCE_GROUP) --query "{Name:name, Status:properties.provisioningState, URL:properties.configuration.ingress.fqdn, Replicas:properties.template.scale.minReplicas}" --output table; \
+	fi
+
+azure-cleanup: ## Clean up Azure resources
+	@echo "🧹 Cleaning up Azure resources..."
+	@echo "⚠️  This will delete the Container App and related resources"
+	@if [ -z "$(CONTAINER_APP_NAME)" ]; then \
+		echo "❌ CONTAINER_APP_NAME environment variable not set"; \
+		echo "Usage: make azure-cleanup CONTAINER_APP_NAME=your-app-name"; \
+	else \
+		az containerapp delete --name $(CONTAINER_APP_NAME) --resource-group $(AZURE_RESOURCE_GROUP) --yes; \
+	fi
+
 # Health check
 health: ## Check API health
 	@echo "🏥 Checking API health..."

@@ -260,6 +260,83 @@ Para personalizar, crea un archivo `.env` o pasa las variables al ejecutar:
 DB_HOST=tu-servidor-postgres make docker-run
 ```
 
+## ☁️ Azure Container Apps Deployment
+
+### GitHub Actions CI/CD
+
+El proyecto incluye un pipeline completo de GitHub Actions para desplegar automáticamente en Azure Container Apps:
+
+- **Staging**: Se despliega automáticamente cuando se hace push a la rama `develop`
+- **Production**: Se despliega automáticamente cuando se hace push a la rama `main`
+- **Manual**: Se puede desplegar manualmente usando workflow dispatch
+
+### Configuración Inicial
+
+1. **Configurar GitHub Secrets** (Settings > Secrets and variables > Actions):
+
+```bash
+AZURE_CREDENTIALS={"clientId":"...","clientSecret":"...","subscriptionId":"...","tenantId":"..."}
+AZURE_RESOURCE_GROUP=goland-api-rg
+AZURE_REGISTRY=golandapiregistry
+AZURE_REGISTRY_PASSWORD=your-acr-password
+CONTAINER_APP_NAME_STAGING=goland-api-staging
+CONTAINER_APP_NAME_PRODUCTION=goland-api-production
+```
+
+2. **Crear recursos de Azure**:
+
+```bash
+# Login a Azure
+make azure-login
+
+# Crear recursos (ver docs/AZURE_DEPLOYMENT.md para detalles completos)
+az group create --name goland-api-rg --location eastus
+az acr create --resource-group goland-api-rg --name golandapiregistry --sku Basic --admin-enabled true
+az containerapp env create --name goland-api-env --resource-group goland-api-rg --location eastus
+```
+
+### Comandos de Azure
+
+```bash
+# Login a Azure CLI
+make azure-login
+
+# Desplegar a staging
+make azure-deploy-staging
+
+# Desplegar a production
+make azure-deploy-production
+
+# Ver logs
+make azure-logs CONTAINER_APP_NAME=goland-api-staging
+
+# Verificar estado
+make azure-status CONTAINER_APP_NAME=goland-api-staging
+
+# Limpiar recursos
+make azure-cleanup CONTAINER_APP_NAME=goland-api-staging
+```
+
+### Configuración de Variables de Entorno
+
+Copia `azure.env.example` a `azure.env` y configura tus variables:
+
+```bash
+cp azure.env.example azure.env
+# Editar azure.env con tus valores
+```
+
+### Características del Deployment
+
+- **Multi-stage Docker builds** para imágenes optimizadas
+- **Auto-scaling** basado en CPU y requests HTTP
+- **Health checks** automáticos
+- **SSL/TLS** con certificados automáticos
+- **Logging** integrado con Azure Monitor
+- **Custom domains** soportados
+
+Para más detalles, consulta [docs/AZURE_DEPLOYMENT.md](docs/AZURE_DEPLOYMENT.md).
+
 ## 🏗️ Estructura del Proyecto
 
 ```
@@ -270,9 +347,14 @@ api/
 ├── Makefile             # Automatización de tareas
 ├── Dockerfile           # Configuración de Docker
 ├── docker-compose.yml   # Orquestación de servicios (API + PostgreSQL)
+├── azure-container-apps.yaml # Configuración de Azure Container Apps
+├── azure.env.example    # Variables de entorno para Azure
 ├── env.example          # Variables de entorno de ejemplo
 ├── .gitignore           # Archivos ignorados por Git
 ├── README.md            # Documentación del proyecto
+├── .github/
+│   └── workflows/
+│       └── deploy-azure.yml # GitHub Actions workflow
 ├── config/
 │   └── middleware.go    # Configuración de middleware
 ├── database/

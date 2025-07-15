@@ -1,0 +1,114 @@
+# Azure Container Apps Configuration
+# This file defines the deployment configuration for Azure Container Apps
+
+apiVersion: 2023-05-01
+location: eastus
+name: goland-api-app
+properties:
+  managedEnvironmentId: /subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.App/managedEnvironments/{environment-name}
+  
+  configuration:
+    # Ingress configuration for external access
+    ingress:
+      external: true
+      targetPort: 8080
+      allowInsecure: false
+      traffic:
+        - latestRevision: true
+          weight: 100
+      customDomains:
+        - name: api.yourdomain.com
+          certificateId: /subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.App/managedEnvironments/{environment-name}/certificates/{certificate-name}
+    
+    # Secrets configuration
+    secrets:
+      - name: db-connection-string
+        value: "your-postgresql-connection-string"
+      - name: jwt-secret
+        value: "your-jwt-secret-key"
+      - name: api-key
+        value: "your-api-key"
+    
+    # Environment variables
+    activeRevisionsMode: Single
+    
+  template:
+    # Container configuration
+    containers:
+      - name: goland-api
+        image: ghcr.io/{your-username}/{your-repo}:latest
+        env:
+          - name: PORT
+            value: "8080"
+          - name: GIN_MODE
+            value: "release"
+          - name: DATABASE_URL
+            secretRef: db-connection-string
+          - name: JWT_SECRET
+            secretRef: jwt-secret
+          - name: API_KEY
+            secretRef: api-key
+          - name: ENVIRONMENT
+            value: "production"
+          - name: LOG_LEVEL
+            value: "info"
+          - name: CORS_ORIGIN
+            value: "*"
+        
+        # Resource limits
+        resources:
+          cpu: 0.5
+          memory: 1Gi
+        
+        # Health check configuration
+        probes:
+          - type: readiness
+            httpGet:
+              path: /api/v1/health
+              port: 8080
+              httpHeaders:
+                - name: Host
+                  value: localhost
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          
+          - type: liveness
+            httpGet:
+              path: /api/v1/health
+              port: 8080
+              httpHeaders:
+                - name: Host
+                  value: localhost
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+    
+    # Scaling configuration
+    scale:
+      minReplicas: 1
+      maxReplicas: 10
+      rules:
+        - name: http-scaling
+          http:
+            metadata:
+              concurrentRequests: "100"
+        - name: cpu-scaling
+          custom:
+            type: cpu
+            metadata:
+              type: Utilization
+              value: "70"
+    
+    # Revision configuration
+    revisionSuffix: ""
+    terminationGracePeriodSeconds: 30
+
+tags:
+  Environment: production
+  Application: goland-api
+  Version: 1.0.0 
